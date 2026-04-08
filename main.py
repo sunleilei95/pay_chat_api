@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import DateTime, Integer, String, create_engine
 from sqlalchemy.orm import Mapped, Session, declarative_base, mapped_column, sessionmaker
 
+from utils import generate_unique_nickname
+
 DB_URL = "mysql+pymysql://root:Aa11221122@localhost:3306/pay_chat"
 
 engine = create_engine(DB_URL, pool_pre_ping=True)
@@ -19,7 +21,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     phone: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
     password: Mapped[str] = mapped_column(String(255), nullable=False)
-    nickname: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    nickname: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, default=None)
     avatar: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     role: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     real_name: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
@@ -87,7 +89,11 @@ def create_user(user_in: UserCreate, db: Session = Depends(get_db)) -> User:
     if exists:
         raise HTTPException(status_code=400, detail="phone already exists")
 
+    if not user_in.nickname:
+        user_in.nickname = generate_unique_nickname(user_in.phone)
+
     user = User(**user_in.model_dump())
+
     db.add(user)
     db.commit()
     db.refresh(user)
